@@ -1,46 +1,27 @@
 import { NextResponse } from 'next/server'
-import { adminAuth, adminDB } from '@/lib/firebase/admin'
+import { adminDB } from '@/lib/firebase/admin'
 import { z } from 'zod'
-
-interface AuthError extends Error {
-  code?: string;
-}
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  uid: z.string()
 })
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     
-    // Validate request body
     const result = loginSchema.safeParse(body)
     if (!result.success) {
-      const errors = result.error.flatten()
       return NextResponse.json({
-        error: 'Validation failed',
-        details: {
-          fields: errors.fieldErrors,
-          form: errors.formErrors
-        }
+        error: 'Invalid request',
+        details: result.error.flatten()
       }, { status: 400 })
     }
 
-    const { email } = result.data
+    const { email, uid } = result.data
 
     try {
-      // Get user from Admin SDK
-      const userRecord = await adminAuth.getUserByEmail(email)
-      
-      if (!userRecord) {
-        return NextResponse.json(
-          { error: 'Invalid email or password' },
-          { status: 401 }
-        )
-      }
-
       // Get user document from Firestore
       const userDoc = await adminDB.collection('users').doc(email).get()
       
@@ -52,6 +33,14 @@ export async function POST(request: Request) {
       }
 
       const userData = userDoc.data()
+
+      // Verify UID matches
+      if (userData?.uid !== uid) {
+        return NextResponse.json(
+          { error: 'Invalid credentials' },
+          { status: 401 }
+        )
+      }
 
       // Check user status
       if (userData?.userStatus === 'pending') {
@@ -71,14 +60,7 @@ export async function POST(request: Request) {
         )
       }
 
-      // Create custom token for client
-      const customToken = await adminAuth.createCustomToken(userRecord.uid, {
-        roles: userData?.roles || ['Player'],
-        status: userData?.userStatus
-      })
-
       return NextResponse.json({
-        token: customToken,
         user: {
           email: userData?.email,
           displayName: userData?.displayName,
@@ -87,24 +69,20 @@ export async function POST(request: Request) {
         }
       })
 
-    } catch (authError: unknown) {
-      const error = authError as AuthError
+    } catch (error) {
       console.error('Auth error:', error)
-
-      if (error.code?.includes('auth/user-not-found')) {
-        return NextResponse.json(
-          { error: 'Invalid email or password' },
-          { status: 401 }
-        )
-      }
-
       throw error
     }
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Login error:', error)
     return NextResponse.json(
-      { error: 'Login failed. Please try again.' },
+      { 
+        error: 'Login failed',
+        details: {
+          form: ['An unexpected error occurred. Please try again later.']
+        }
+      },
       { status: 500 }
     )
   }

@@ -1,23 +1,41 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { CreateUserData } from '@/types/user'
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth'
+import { auth } from '@/lib/firebase/firebase-config'
+
+interface RegisterFormData {
+  email: string
+  password: string
+  displayName: string
+  phoneNumber: string
+  jerseyNumber: string
+  dateOfBirth: string
+}
 
 interface ValidationErrors {
-  [key: string]: string
+  email?: string[]
+  password?: string[]
+  displayName?: string[]
+  phoneNumber?: string[]
+  jerseyNumber?: string[]
+  dateOfBirth?: string[]
+  form?: string[]
 }
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<ValidationErrors>({})
-  const [formData, setFormData] = useState<CreateUserData>({
+  const [formData, setFormData] = useState<RegisterFormData>({
     email: '',
     password: '',
     displayName: '',
-    jerseyNumber: '',
     phoneNumber: '',
-    dateOfBirth: '',
+    jerseyNumber: '',
+    dateOfBirth: ''
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,7 +43,7 @@ export default function RegisterPage() {
     setFormData(prev => ({ ...prev, [name]: value }))
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }))
+      setErrors(prev => ({ ...prev, [name]: [] }))
     }
   }
 
@@ -35,7 +53,8 @@ export default function RegisterPage() {
     setErrors({})
 
     try {
-      const response = await fetch('/api/auth/register', {
+      // First validate with backend before creating Firebase user
+      const validateResponse = await fetch('/api/auth/register/validate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,28 +62,82 @@ export default function RegisterPage() {
         body: JSON.stringify(formData),
       })
 
-      const data = await response.json()
+      const validateData = await validateResponse.json()
 
-      if (!response.ok) {
-        if (response.status === 400 && data.details) {
-          // Handle validation errors
-          const validationErrors: ValidationErrors = {}
-          if (data.details.fields) {
-            Object.entries(data.details.fields).forEach(([field, messages]) => {
-              validationErrors[field] = Array.isArray(messages) ? messages[0] : messages
-            })
-            setErrors(validationErrors)
-            throw new Error('Please fix the validation errors')
+      if (!validateResponse.ok) {
+        if (validateResponse.status === 400 && validateData.details) {
+          setErrors(validateData.details.fields || {})
+          if (validateData.details.form?.length) {
+            toast.error(validateData.details.form[0])
           }
+          return
         }
-        throw new Error(data.error || 'Registration failed')
+        throw new Error(validateData.error || 'Validation failed')
       }
 
-      toast.success('Account created successfully! Waiting for approval.')
-      window.location.href = '/pending-approval?from=register'
+      // If validation passes, create Firebase user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth, 
+        formData.email, 
+        formData.password
+      )
+
+      try {
+        // Then create user profile in our backend
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...formData,
+            uid: userCredential.user.uid,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          // If backend fails, delete the Firebase user
+          await userCredential.user.delete()
+          throw new Error(data.error || 'Registration failed')
+        }
+
+        // Sign out the user after successful registration
+        await signOut(auth)
+        
+        toast.success('Registration successful! Please wait for approval.')
+        router.replace('/pending-approval?from=register')
+
+      } catch (error) {
+        // If anything fails after Firebase user creation, clean up
+        await userCredential.user.delete()
+        throw error
+      }
+
     } catch (error: unknown) {
       console.error('Registration error:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to create account')
+      
+      if (error instanceof Error && 'code' in error) {
+        // Handle Firebase Auth errors
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            setErrors({ email: ['Email already registered'] })
+            break
+          case 'auth/invalid-email':
+            setErrors({ email: ['Invalid email format'] })
+            break
+          case 'auth/weak-password':
+            setErrors({ password: ['Password is too weak'] })
+            break
+          default:
+            setErrors({ form: ['Registration failed. Please try again.'] })
+            toast.error('Registration failed. Please try again.')
+        }
+      } else {
+        setErrors({ form: ['An unexpected error occurred'] })
+        toast.error('Registration failed. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -101,7 +174,7 @@ export default function RegisterPage() {
                 } px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500`}
               />
               {errors.displayName && (
-                <p className="mt-1 text-sm text-red-500">{errors.displayName}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.displayName.join(', ')}</p>
               )}
               <p className="mt-1 text-xs text-gray-500">Must be at least 2 characters</p>
             </div>
@@ -122,7 +195,7 @@ export default function RegisterPage() {
                 } px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.email.join(', ')}</p>
               )}
             </div>
 
@@ -143,7 +216,7 @@ export default function RegisterPage() {
                 } px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-500">{errors.password}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.password.join(', ')}</p>
               )}
               <p className="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
             </div>
@@ -165,7 +238,7 @@ export default function RegisterPage() {
                 } px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
               />
               {errors.phoneNumber && (
-                <p className="mt-1 text-sm text-red-500">{errors.phoneNumber}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.phoneNumber.join(', ')}</p>
               )}
               <p className="mt-1 text-xs text-gray-500">Singapore phone number (8 digits starting with 8 or 9)</p>
             </div>
@@ -186,7 +259,7 @@ export default function RegisterPage() {
                 } px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
               />
               {errors.jerseyNumber && (
-                <p className="mt-1 text-sm text-red-500">{errors.jerseyNumber}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.jerseyNumber.join(', ')}</p>
               )}
             </div>
 
@@ -206,7 +279,7 @@ export default function RegisterPage() {
                 } px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
               />
               {errors.dateOfBirth && (
-                <p className="mt-1 text-sm text-red-500">{errors.dateOfBirth}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.dateOfBirth.join(', ')}</p>
               )}
             </div>
           </div>

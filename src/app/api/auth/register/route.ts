@@ -5,92 +5,67 @@ import { z } from 'zod';
 const registerSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  displayName: z.string().min(2, 'Name must be at least 2 characters'),
-  jerseyNumber: z.string().min(1, 'Jersey number is required'),
-  phoneNumber: z.string()
-    .regex(/^[89][0-9]{7}$/, 'Must be a valid Singapore phone number (8 digits starting with 8 or 9)'),
-  dateOfBirth: z.string().refine((date) => !isNaN(Date.parse(date)), {
-    message: 'Invalid date format',
-  }),
+  displayName: z.string().min(2, 'Display name must be at least 2 characters'),
+  phoneNumber: z.string().regex(/^[89][0-9]{7}$/, 'Invalid phone number format'),
+  jerseyNumber: z.string(),
+  dateOfBirth: z.string()
 });
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('Registration request received:', { ...body, password: '***' });
+    const { uid, ...userData } = body;
 
-    // Validate request body
-    const result = registerSchema.safeParse(body);
+    const result = registerSchema.safeParse(userData);
     if (!result.success) {
-      const errors = result.error.flatten();
       return NextResponse.json({
         error: 'Validation failed',
         details: {
-          fields: errors.fieldErrors,
-          form: errors.formErrors
+          fields: result.error.flatten().fieldErrors,
         }
       }, { status: 400 });
     }
 
-    const { email, password, displayName, jerseyNumber, phoneNumber, dateOfBirth } = body;
+    const { email, displayName, phoneNumber, jerseyNumber, dateOfBirth } = result.data;
 
-    // Check if jersey number is already taken
-    const jerseyNumberDoc = await adminDB
-      .collection('users')
-      .where('jerseyNumber', '==', jerseyNumber)
-      .get();
+    try {
+      // Create user document in Firestore
+      await adminDB.collection('users').doc(email).set({
+        uid,
+        email,
+        displayName,
+        phoneNumber,
+        jerseyNumber,
+        dateOfBirth,
+        roles: ['Player'],
+        userStatus: 'pending',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
 
-    if (!jerseyNumberDoc.empty) {
-      return NextResponse.json(
-        { error: 'Jersey number already taken' },
-        { status: 409 }
-      );
+      return NextResponse.json({
+        message: 'Registration successful',
+        user: {
+          email,
+          displayName,
+          userStatus: 'pending'
+        }
+      });
+
+    } catch (error) {
+      console.error('Firestore error:', error);
+      throw error;
     }
 
-    // Create user in Firebase Auth
-    const userRecord = await adminAuth.createUser({
-      email,
-      password,
-      displayName,
-    });
-
-    // Set custom claims
-    await adminAuth.setCustomUserClaims(userRecord.uid, {
-      roles: ['Player'],
-      status: 'pending'
-    });
-
-    // Create user document in Firestore
-    const timestamp = new Date().toISOString();
-    await adminDB.collection('users').doc(email).set({
-      email,
-      displayName,
-      jerseyNumber,
-      phoneNumber,
-      dateOfBirth,
-      roles: ['Player'],
-      userStatus: 'pending',
-      createdAt: timestamp,
-      updatedAt: timestamp
-    });
-
-    return NextResponse.json({
-      message: 'Registration successful',
-      uid: userRecord.uid
-    });
-
-  } catch (error: any) {
+  } catch (error) {
     console.error('Registration error:', error);
-
-    if (error.code === 'auth/email-already-exists') {
-      return NextResponse.json(
-        { error: 'Email already registered' },
-        { status: 409 }
-      );
-    }
-
     return NextResponse.json(
-      { error: 'Registration failed. Please try again.' },
+      { 
+        error: 'Registration failed',
+        details: {
+          form: ['An unexpected error occurred. Please try again later.']
+        }
+      },
       { status: 500 }
     );
   }
