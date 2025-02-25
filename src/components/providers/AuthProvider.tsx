@@ -3,8 +3,9 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { useRouter, usePathname } from 'next/navigation'
-import { auth } from '@/lib/firebase/firebase-config'
-import type { User } from 'firebase/auth'
+import { auth, db } from '@/lib/firebase/firebase-config'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import type { User } from '@/types/user'
 
 interface AuthContextType {
   user: User | null

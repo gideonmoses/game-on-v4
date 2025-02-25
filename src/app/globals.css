@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  
+  /* Base colors */
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f9fafb;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-border: #e5e7eb;
+
+  /* Status colors */
+  --color-available: #22c55e;
+  --color-not-available: #ef4444;
+  --color-tentative: #f59e0b;
+  --color-default: #9ca3af;
+
+  /* UI colors */
+  --color-accent: #3b82f6;
+  --color-error: #ef4444;
+  --color-success: #22c55e;
+}
+
+.dark {
+  color-scheme: dark;
+  
+  /* Base colors */
+  --color-background-primary: #111827;
+  --color-background-secondary: #1f2937;
+  --color-text-primary: #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-border: #374151;
+
+  /* Status colors */
+  --color-available: #4ade80;
+  --color-not-available: #f87171;
+  --color-tentative: #fbbf24;
+  --color-default: #6b7280;
+
+  /* UI colors */
+  --color-accent: #60a5fa;
+  --color-error: #f87171;
+  --color-success: #4ade80;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-[var(--color-background-primary)] text-[var(--color-text-primary)];
+  }
+
+  /* Default styles for common elements */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-[var(--color-text-primary)];
+  }
+
+  p {
+    @apply text-[var(--color-text-secondary)];
+  }
+
+  svg {
+    @apply fill-none;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-[var(--color-background-primary)] 
+           border border-[var(--color-border)] 
+           rounded-lg shadow-sm;
+  }
+
+  .button-primary {
+    @apply bg-[var(--color-accent)] 
+           text-white 
+           hover:bg-[var(--color-accent)]/90 
+           rounded-md px-4 py-2 
+           transition-colors;
+  }
+
+  .availability-icon {
+    @apply w-8 h-8;
+  }
+
+  .availability-button {
+    @apply p-2 rounded-full transition-all border-2
+           hover:bg-[var(--color-background-secondary)];
+  }
+
+  .availability-button-selected {
+    @apply border-current bg-current/10;
+  }
+
+  .icon-button {
+    @apply relative inline-flex items-center justify-center;
+  }
+  
+  .icon-button svg {
+    @apply stroke-2;
+  }
+  
+  /* Selected states */
+  .icon-available {
+    color: var(--color-available);
+  }
+  
+  .icon-not-available {
+    color: var(--color-not-available);
+  }
+  
+  .icon-tentative {
+    color: var(--color-tentative);
+  }
+
+  .icon-default {
+    color: var(--color-default);
+  }
+
+  .theme-toggle-icon {
+    @apply w-5 h-5 stroke-2 stroke-gray-600 dark:stroke-gray-400;
+  }
+} 

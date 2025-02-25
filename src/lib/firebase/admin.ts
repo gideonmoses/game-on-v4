@@ -1,24 +1,19 @@
+// This file should only be imported in server-side code
 import { initializeApp, getApps, cert } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 
-if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-  throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is not set in environment variables')
-}
+const apps = getApps()
 
-// Initialize Firebase Admin if it hasn't been initialized
-if (!getApps().length) {
-  try {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-    
-    initializeApp({
-      credential: cert(serviceAccount)
+if (!apps.length) {
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
     })
-  } catch (error) {
-    console.error('Error initializing Firebase Admin:', error)
-    throw new Error('Invalid service account key format')
-  }
+  })
 }
 
-export const adminAuth = getAuth()
-export const adminDB = getFirestore() 
+const adminDB = getFirestore()
+
+export { adminDB } 

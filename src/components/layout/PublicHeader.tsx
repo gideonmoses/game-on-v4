@@ -1,32 +1,28 @@
 'use client'
 
-import Link from 'next/link'
-import { HomeIcon } from '@heroicons/react/24/outline'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { useTheme } from '@/components/providers/ThemeProvider'
+import { Sun, Moon } from 'lucide-react'
 
 export function PublicHeader() {
+  const { theme, toggleTheme } = useTheme()
+
   return (
-    <header className="bg-white dark:bg-gray-800 shadow">
+    <header className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 z-50">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center space-x-4">
-            <Link 
-              href="/home"
-              className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
-              aria-label="Home"
-            >
-              <HomeIcon className="w-6 h-6" />
-            </Link>
-            <Link 
-              href="/"
-              className="text-xl font-bold text-gray-900 dark:text-white"
-            >
-              Game On
-            </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <ThemeToggle />
-          </div>
+        <div className="flex items-center justify-between h-16">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Game On</h1>
+          
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? (
+              <Sun className="theme-toggle-icon" />
+            ) : (
+              <Moon className="theme-toggle-icon" />
+            )}
+          </button>
         </div>
       </div>
     </header>

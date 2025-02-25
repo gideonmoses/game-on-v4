@@ -4,34 +4,34 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { 
-  TrophyIcon, 
-  CalendarIcon,
-  UsersIcon,
-  ChartBarIcon 
-} from '@heroicons/react/24/outline'
+  Users, 
+  Trophy,
+  CalendarDays,
+  Settings 
+} from 'lucide-react'
 
 const adminLinks = [
   {
     href: '/admin/tournaments',
-    icon: TrophyIcon,
+    icon: Trophy,
     title: 'Tournaments',
     description: 'Manage tournaments and competitions'
   },
   {
     href: '/admin/matches',
-    icon: CalendarIcon,
+    icon: CalendarDays,
     title: 'Matches',
     description: 'Schedule and manage matches'
   },
   {
     href: '/admin/users',
-    icon: UsersIcon,
+    icon: Users,
     title: 'Users',
     description: 'Manage user accounts and roles'
   },
   {
     href: '/admin/stats',
-    icon: ChartBarIcon,
+    icon: Settings,
     title: 'Statistics',
     description: 'View system statistics'
   }
@@ -96,6 +96,18 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      <Link
+        href="/admin/tournaments"
+        className="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow"
+      >
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Manage Tournaments
+        </h3>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
+          Create and manage tournaments and competitions
+        </p>
+      </Link>
     </div>
   )
 } 

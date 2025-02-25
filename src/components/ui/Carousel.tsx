@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { ChevronLeftIcon, ChevronRight } from 'lucide-react'
 
 interface CarouselProps {
   items: {
@@ -72,7 +72,7 @@ export function Carousel({ items }: CarouselProps) {
         onClick={goToNext}
         className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 text-gray-800 dark:text-white hover:bg-white dark:hover:bg-gray-800"
       >
-        <ChevronRightIcon className="w-6 h-6" />
+        <ChevronRight className="w-6 h-6" />
       </button>
 
       {/* Indicators */}

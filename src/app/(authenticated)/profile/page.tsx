@@ -5,7 +5,7 @@ import { useAuth } from '@/components/providers/AuthProvider'
 import { doc, getDoc } from 'firebase/firestore'
 import { firestore } from '@/lib/firebase/firebase-config'
 import { toast } from 'react-hot-toast'
-import { PencilIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline'
+import { Pencil, X, Check } from 'lucide-react'
 
 interface UserProfile {
   displayName: string
@@ -210,7 +210,7 @@ export default function ProfilePage() {
             onClick={handleEdit}
             className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
           >
-            <PencilIcon className="w-4 h-4 mr-2" />
+            <Pencil className="w-4 h-4 mr-2" />
             Edit Profile
           </button>
         ) : (
@@ -219,14 +219,14 @@ export default function ProfilePage() {
               onClick={handleCancel}
               className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
             >
-              <XMarkIcon className="w-4 h-4 mr-2" />
+              <X className="w-4 h-4 mr-2" />
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               className="flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
             >
-              <CheckIcon className="w-4 h-4 mr-2" />
+              <Check className="w-4 h-4 mr-2" />
               Save
             </button>
           </div>

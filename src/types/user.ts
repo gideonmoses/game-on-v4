@@ -1,19 +1,16 @@
-// Remove unused FirebaseUser import if not needed
 export type UserRole = 'Player' | 'Manager' | 'Selector' | 'Admin'
 
-export type UserStatus = 'active' | 'inactive' | 'pending' | 'suspended'
+export type UserStatus = 'approved' | 'pending' | 'suspended'
 
-// This is the Firestore user document type
 export interface User {
-  email: string
+  id: string
   displayName: string
-  phoneNumber: string
-  dateOfBirth: string
-  jerseyNumber: string
-  roles: UserRole[]
-  userStatus: UserStatus
+  email: string
+  role: UserRole
+  status: UserStatus
   createdAt: string
   updatedAt: string
+  getIdToken: () => Promise<string>
 }
 
 // Type for registration form data
@@ -47,4 +44,4 @@ export interface UpdateUserData {
   jerseyNumber?: string
   userStatus?: UserStatus
   roles?: UserRole[]
-} 
+}
