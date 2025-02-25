@@ -4,13 +4,13 @@ export type UserStatus = 'approved' | 'pending' | 'suspended'
 
 export interface User {
   id: string
-  displayName: string
   email: string
-  role: UserRole
-  status: UserStatus
-  createdAt: string
-  updatedAt: string
-  getIdToken: () => Promise<string>
+  displayName: string
+  role: string[]
+  phoneNumber?: string
+  jerseyNumber?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 // Type for registration form data

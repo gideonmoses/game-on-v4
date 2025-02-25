@@ -5,11 +5,9 @@ export type JerseyColor = 'whites' | 'colours'
 export type VoteStatus = 'available' | 'not_available' | 'tentative'
 
 export interface MatchVote {
-  userId: string
-  matchId: string
   status: VoteStatus
-  createdAt: string
   updatedAt: string
+  userEmail?: string
 }
 
 export interface Match {
@@ -32,9 +30,6 @@ export interface Match {
   createdAt: Timestamp
   updatedAt: Timestamp
   votes?: {
-    [userId: string]: {
-      status: VoteStatus
-      updatedAt: string
-    }
+    [uid: string]: MatchVote
   }
 } 

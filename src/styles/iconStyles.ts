@@ -66,5 +66,10 @@ export const iconStyles = {
   settings: {
     container: 'bg-green-100 dark:bg-green-900/20',
     default: 'text-green-600 dark:text-green-400'
+  },
+
+  selector: {
+    container: 'bg-indigo-100 dark:bg-indigo-900/20',
+    default: 'text-indigo-600 dark:text-indigo-400'
   }
 } 
