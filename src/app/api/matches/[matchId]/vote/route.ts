@@ -4,19 +4,18 @@ import { getAuth } from 'firebase-admin/auth'
 import { z } from 'zod'
 
 const voteSchema = z.object({
-  matchId: z.string().min(1, 'Match ID is required'),
   status: z.enum(['available', 'not_available', 'tentative'])
 })
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  { params }: { params: { matchId: string } }
+) {
   try {
-    // Get the authorization token
+    const { matchId } = params
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const token = authHeader.split('Bearer ')[1]
@@ -34,7 +33,7 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    const { matchId, status } = result.data
+    const { status } = result.data
 
     await adminDB.collection('matches').doc(matchId).update({
       [`votes.${userId}`]: {
@@ -44,15 +43,9 @@ export async function POST(request: Request) {
       }
     })
 
-    return NextResponse.json({ 
-      message: 'Vote recorded successfully'
-    })
-
+    return NextResponse.json({ message: 'Vote recorded successfully' })
   } catch (error) {
     console.error('Error recording vote:', error)
-    return NextResponse.json(
-      { error: 'Failed to record vote' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to record vote' }, { status: 500 })
   }
 } 

@@ -11,11 +11,15 @@ import {
   HelpCircle,
   ThumbsUp,
   ThumbsDown,
-  Users
+  Users,
+  Check,
+  X
 } from 'lucide-react'
 import type { Match, VoteStatus } from '@/types/match'
 import { useAuth } from '@/hooks/useAuth'
 import { iconStyles } from '@/styles/iconStyles'
+import { format } from 'date-fns'
+import { InfoItem } from '@/components/ui/InfoItem'
 
 const voteOptions: { 
   value: VoteStatus
@@ -128,72 +132,46 @@ export function VotingList() {
   const [matches, setMatches] = useState<Match[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isVoting, setIsVoting] = useState<string | null>(null)
-  const [votedMatches, setVotedMatches] = useState<string[]>([])
 
   useEffect(() => {
-    const fetchMatches = async () => {
-      try {
-        const response = await fetch('/api/matches/voting')
-        const data = await response.json()
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch matches')
-        }
-
-        setMatches(data.matches)
-      } catch (error) {
-        console.error('Error fetching matches:', error)
-        toast.error('Failed to load matches')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     fetchMatches()
   }, [])
 
-  const handleVote = async (matchId: string, status: VoteStatus) => {
-    if (!user?.id) return
-
-    setIsVoting(matchId)
+  const fetchMatches = async () => {
     try {
-      const token = await user.getIdToken()
+      const response = await fetch('/api/matches')
+      if (!response.ok) throw new Error('Failed to fetch matches')
+      const data = await response.json()
+      setMatches(data)
+    } catch (error) {
+      console.error('Error fetching matches:', error)
+      toast.error('Failed to load matches')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-      const response = await fetch('/api/matches/vote', {
+  const handleVote = async (matchId: string, status: VoteStatus) => {
+    if (!user) return
+    setIsVoting(matchId)
+
+    try {
+      const idToken = await user.getIdToken()
+      const response = await fetch(`/api/matches/${matchId}/vote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({
-          matchId,
-          status
-        }),
+        body: JSON.stringify({ status })
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit vote')
+        throw new Error('Failed to submit vote')
       }
 
-      // Update local state
-      setMatches(prev => prev.map(match => {
-        if (match.id === matchId) {
-          return {
-            ...match,
-            votes: {
-              ...match.votes,
-              [user.id]: {
-                status,
-                updatedAt: new Date().toISOString()
-              }
-            }
-          }
-        }
-        return match
-      }))
-
+      // Refresh matches after voting
+      await fetchMatches()
       toast.success('Vote submitted successfully')
     } catch (error) {
       console.error('Vote error:', error)
@@ -203,145 +181,91 @@ export function VotingList() {
     }
   }
 
+  const formatMatchDate = (date: any) => {
+    if (!date) return ''
+    const timestamp = date.toDate ? date.toDate() : new Date(date)
+    return format(timestamp, 'MMM d, yyyy')
+  }
+
   const getUserVote = (match: Match) => {
-    if (!user?.id || !match.votes) return null
-    return match.votes[user.id]?.status
+    return match.votes?.[user?.id || '']?.status
   }
 
   if (isLoading) {
-    return (
-      <div className="animate-pulse">
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-48 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (matches.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-        No matches available for voting at this time.
-      </div>
-    )
+    return <div>Loading...</div>
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {matches.map((match) => {
-        const userVote = getUserVote(match)
-        const selectedOption = voteOptions.find(opt => opt.value === userVote)
-
-        return (
-          <div 
-            key={match.id}
-            className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden"
-          >
-            <div className="p-4">
-              {/* Match Header with Vote Status Tag */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center flex-1">
-                  <div className={`p-2 rounded ${iconStyles.trophy.container}`}>
-                    <Users className={`h-5 w-5 ${iconStyles.trophy.default}`} />
-                  </div>
-                  <h3 className="ml-2 text-lg font-semibold text-gray-900 dark:text-white truncate">
-                    {`${match.homeTeam} vs ${match.awayTeam}`}
-                  </h3>
-                </div>
-                {userVote && (
-                  <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full
-                    ${userVote === 'available' 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                      : userVote === 'tentative'
-                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
-                      : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                    }`}
-                  >
-                    {userVote === 'available' ? 'Yes' 
-                      : userVote === 'tentative' ? 'Maybe' 
-                      : 'No'}
-                  </span>
-                )}
-              </div>
-
-              {/* Match Details in 2 columns */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                <LabeledData
-                  icon={<Calendar className="h-4 w-4" />}
-                  label="Date"
-                  value={new Date(match.date).toLocaleDateString()}
-                  iconStyle={iconStyles.calendar}
-                />
-
-                <LabeledData
-                  icon={<MapPin className="h-4 w-4" />}
-                  label="Venue"
-                  value={match.venue}
-                  iconStyle={iconStyles.location}
-                />
-              </div>
-
-              {/* Updated Voting Section with Borders */}
-              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex justify-between items-center">
-                  <button
-                    onClick={() => handleVote(match.id, 'available')}
-                    disabled={isVoting === match.id}
-                    className={`flex items-center space-x-2 p-2 rounded-lg border ${
-                      userVote === 'available'
-                        ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/20'
-                        : 'border-transparent hover:border-green-500 dark:hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
-                    } ${
-                      isVoting === match.id ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    <div className={`p-1 rounded ${iconStyles.check.container}`}>
-                      <ThumbsUp className={`h-4 w-4 ${iconStyles.check.default}`} />
-                    </div>
-                    <span className={`text-sm ${iconStyles.check.default}`}>Yes</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleVote(match.id, 'tentative')}
-                    disabled={isVoting === match.id}
-                    className={`flex items-center space-x-2 p-2 rounded-lg border ${
-                      userVote === 'tentative'
-                        ? 'border-amber-500 dark:border-amber-400 bg-amber-50 dark:bg-amber-900/20'
-                        : 'border-transparent hover:border-amber-500 dark:hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
-                    } ${
-                      isVoting === match.id ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    <div className={`p-1 rounded ${iconStyles.question.container}`}>
-                      <HelpCircle className={`h-4 w-4 ${iconStyles.question.default}`} />
-                    </div>
-                    <span className={`text-sm ${iconStyles.question.default}`}>Maybe</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleVote(match.id, 'not_available')}
-                    disabled={isVoting === match.id}
-                    className={`flex items-center space-x-2 p-2 rounded-lg border ${
-                      userVote === 'not_available'
-                        ? 'border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20'
-                        : 'border-transparent hover:border-red-500 dark:hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                    } ${
-                      isVoting === match.id ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    <div className={`p-1 rounded ${iconStyles.cross.container}`}>
-                      <ThumbsDown className={`h-4 w-4 ${iconStyles.cross.default}`} />
-                    </div>
-                    <span className={`text-sm ${iconStyles.cross.default}`}>No</span>
-                  </button>
-                </div>
-              </div>
+    <div className="space-y-4">
+      {matches.map((match) => (
+        <div
+          key={match.id}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4"
+        >
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {match.homeTeam} vs {match.awayTeam}
+              </h3>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              {/* Voting buttons */}
+              <button
+                onClick={() => handleVote(match.id, 'available')}
+                disabled={isVoting === match.id}
+                className="p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
+                title="Available"
+              >
+                <Check className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => handleVote(match.id, 'tentative')}
+                disabled={isVoting === match.id}
+                className="p-2 rounded-full hover:bg-yellow-100 dark:hover:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400"
+                title="Maybe"
+              >
+                <HelpCircle className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => handleVote(match.id, 'not_available')}
+                disabled={isVoting === match.id}
+                className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                title="Not Available"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
-        )
-      })}
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <InfoItem
+              icon={<Trophy className="h-4 w-4" />}
+              label="Tournament"
+              value={match.tournamentName}
+              iconStyle={iconStyles.trophy.default}
+            />
+            <InfoItem
+              icon={<Calendar className="h-4 w-4" />}
+              label="Date"
+              value={formatMatchDate(match.date)}
+              iconStyle={iconStyles.calendar.default}
+            />
+            <InfoItem
+              icon={<MapPin className="h-4 w-4" />}
+              label="Venue"
+              value={match.venue}
+              iconStyle={iconStyles.location.default}
+            />
+          </div>
+
+          {getUserVote(match) && (
+            <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+              Your response: {getUserVote(match)}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   )
 } 
