@@ -1,19 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase/firebase-config'
 import { Match } from '@/types/match'
-import Link from 'next/link'
-import { Calendar, MapPin, Clock, Check, X, HelpCircle } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
-
-interface VoteSummary {
-  available: number
-  not_available: number
-  tentative: number
-  total: number
-}
+import { MatchCard } from '@/components/matches/MatchCard'
 
 export default function SelectorHomePage() {
   const [matches, setMatches] = useState<Match[]>([])
@@ -22,19 +13,36 @@ export default function SelectorHomePage() {
   useEffect(() => {
     const fetchMatches = async () => {
       try {
+        // Create a Firestore timestamp for now
+        const now = Timestamp.now()
         const matchesRef = collection(db, 'matches')
+        
+        // First get all matches and filter client-side
         const matchQuery = query(
           matchesRef,
-          where('status', '==', 'voting')
+          orderBy('date', 'asc')
         )
         
         const querySnapshot = await getDocs(matchQuery)
-        const matchesData = querySnapshot.docs.map(doc => ({
+        const matchData = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Match[]
 
-        setMatches(matchesData)
+        // Filter future matches client-side
+        const futureMatches = matchData.filter(match => {
+          // Handle both string dates and Firestore timestamps
+          if (typeof match.date === 'string') {
+            return new Date(match.date) >= new Date()
+          }
+          // Handle Firestore timestamp
+          if ('seconds' in match.date) {
+            return match.date.seconds >= now.seconds
+          }
+          return false
+        })
+
+        setMatches(futureMatches)
       } catch (error) {
         console.error('Error fetching matches:', error)
       } finally {
@@ -45,141 +53,75 @@ export default function SelectorHomePage() {
     fetchMatches()
   }, [])
 
-  const formatMatchDate = (date: string | { seconds: number }) => {
-    try {
-      if (typeof date === 'string') {
-        return format(parseISO(date), 'PPP')
-      } else if (typeof date === 'object' && 'seconds' in date) {
-        return format(new Date(date.seconds * 1000), 'PPP')
-      }
-      return 'Invalid date'
-    } catch (error) {
-      console.error('Error formatting date:', error)
-      return 'Invalid date'
-    }
-  }
-
-  const getVoteSummary = (votes: Match['votes']): VoteSummary => {
-    if (!votes) return { available: 0, not_available: 0, tentative: 0, total: 0 }
-    
-    const summary = Object.values(votes).reduce((acc, vote) => {
-      acc[vote.status]++
-      acc.total++
-      return acc
-    }, {
-      available: 0,
-      not_available: 0,
-      tentative: 0,
-      total: 0
-    } as VoteSummary)
-
-    return summary
-  }
-
   if (isLoading) {
-    return <MatchListSkeleton />
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-current border-t-transparent text-blue-600" />
+      </div>
+    )
   }
 
-  return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-        Open for Selection
-      </h1>
-
-      {matches.length === 0 ? (
-        <div className="text-center py-8">
+  if (matches.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-4">
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            No Upcoming Matches
+          </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            No matches currently open for selection
+            There are no matches scheduled for the future.
           </p>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {matches.map((match) => (
-            <Link
-              key={match.id}
-              href={`/select-team/${match.id}`}
-              className="block bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow"
-            >
-              <div className="p-4">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {match.homeTeam} vs {match.awayTeam}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {match.tournamentName}
-                    </p>
-                  </div>
-                </div>
+      </div>
+    )
+  }
 
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      {formatMatchDate(match.date)}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                      <Clock className="w-4 h-4 mr-2" />
-                      {match.time}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      {match.venue}
-                    </div>
-                  </div>
+  // Add getStatusTag helper function
+  const getStatusTag = (status: string) => {
+    const statusStyles = {
+      'voting': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      'team-selected': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      'team-announced': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+    }[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'
 
-                  <div className="flex flex-col items-end">
-                    {(() => {
-                      const summary = getVoteSummary(match.votes)
-                      return (
-                        <>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {summary.total} Responses
-                          </div>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <div className="flex items-center text-sm text-green-600">
-                              <Check className="w-4 h-4 mr-1" />
-                              {summary.available}
-                            </div>
-                            <div className="flex items-center text-sm text-yellow-600">
-                              <HelpCircle className="w-4 h-4 mr-1" />
-                              {summary.tentative}
-                            </div>
-                            <div className="flex items-center text-sm text-red-600">
-                              <X className="w-4 h-4 mr-1" />
-                              {summary.not_available}
-                            </div>
-                          </div>
-                        </>
-                      )
-                    })()}
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+    const statusText = {
+      'voting': 'Voting Open',
+      'team-selected': 'Team Selected',
+      'team-announced': 'Team Announced'
+    }[status] || status
 
-function MatchListSkeleton() {
+    return (
+      <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusStyles}`}>
+        {statusText}
+      </span>
+    )
+  }
+
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-6" />
+    <div className="max-w-4xl mx-auto p-4 space-y-4">
+      <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+        Upcoming Matches
+      </h1>
+      
       <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-            <div className="space-y-4">
-              <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded" />
-              <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded" />
-              <div className="space-y-2">
-                {[...Array(3)].map((_, j) => (
-                  <div key={j} className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded" />
-                ))}
+        {matches.map(match => (
+          <div key={match.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {match.homeTeam} vs {match.awayTeam}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {match.tournamentName}
+                </p>
               </div>
+              {getStatusTag(match.status)}
             </div>
+
+            <MatchCard 
+              match={match}
+              href={`/select-team/${match.id}`}
+            />
           </div>
         ))}
       </div>

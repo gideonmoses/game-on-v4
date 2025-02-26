@@ -71,5 +71,92 @@ export const iconStyles = {
   selector: {
     container: 'bg-indigo-100 dark:bg-indigo-900/20',
     default: 'text-indigo-600 dark:text-indigo-400'
+  },
+
+  // Add select-team specific styles
+  selectTeam: {
+    back: {
+      default: 'text-gray-600 dark:text-gray-400',
+      container: `
+        border-2 border-gray-300 dark:border-gray-600
+        hover:border-gray-400 dark:hover:border-gray-500
+        hover:bg-gray-50/50 dark:hover:bg-gray-400/10
+        transition-all duration-200
+      `
+    },
+    save: {
+      default: 'text-blue-400 dark:text-blue-300',
+      container: `
+        border-2 border-blue-400 dark:border-blue-300 
+        bg-blue-400/10 dark:bg-blue-400/10 
+        shadow-[0_0_12px_rgba(96,165,250,0.2)] dark:shadow-[0_0_12px_rgba(147,197,253,0.3)]
+        hover:bg-blue-400/20 dark:hover:bg-blue-400/20
+        transition-all duration-200
+      `
+    },
+    publish: {
+      default: 'text-emerald-400 dark:text-emerald-300',
+      container: `
+        border-2 border-emerald-400 dark:border-emerald-300 
+        bg-emerald-400/10 dark:bg-emerald-400/10 
+        shadow-[0_0_12px_rgba(52,211,153,0.2)] dark:shadow-[0_0_12px_rgba(110,231,183,0.3)]
+        hover:bg-emerald-400/20 dark:hover:bg-emerald-400/20
+        transition-all duration-200
+      `
+    },
+    unpublish: {
+      default: 'text-rose-400 dark:text-rose-300',
+      container: `
+        border-2 border-rose-400 dark:border-rose-300 
+        bg-rose-400/10 dark:bg-rose-400/10 
+        shadow-[0_0_12px_rgba(251,113,133,0.2)] dark:shadow-[0_0_12px_rgba(253,164,175,0.3)]
+        hover:bg-rose-400/20 dark:hover:bg-rose-400/20
+        transition-all duration-200
+      `
+    },
+    player: {
+      selected: {
+        default: 'text-emerald-400 dark:text-emerald-300',
+        container: `
+          border-2 border-emerald-400 dark:border-emerald-300 
+          bg-emerald-400/10 dark:bg-emerald-400/10 
+          shadow-[0_0_12px_rgba(52,211,153,0.2)] dark:shadow-[0_0_12px_rgba(110,231,183,0.3)]
+          hover:bg-emerald-400/20 dark:hover:bg-emerald-400/20
+          rounded-full
+          transition-all duration-200
+        `
+      },
+      unselected: {
+        default: 'text-gray-600 dark:text-gray-400',
+        container: `
+          border-2 border-gray-300 dark:border-gray-600
+          hover:border-emerald-400 dark:hover:border-emerald-300
+          hover:text-emerald-400 dark:hover:text-emerald-300
+          hover:bg-emerald-50/50 dark:hover:bg-emerald-400/10
+          rounded-full
+          transition-all duration-200
+        `
+      }
+    },
+    tab: {
+      default: {
+        active: 'text-amber-100',
+        inactive: 'text-gray-500 dark:text-gray-400'
+      },
+      container: {
+        active: 'bg-gradient-to-br from-amber-500 via-amber-400 to-yellow-500 shadow-lg shadow-amber-500/30 dark:shadow-amber-400/30',
+        inactive: 'border-2 border-gray-200/30 dark:border-gray-700/30 hover:border-gray-300/50 dark:hover:border-gray-600/50'
+      }
+    },
+    export: {
+      default: 'text-indigo-400 dark:text-indigo-300',
+      container: `
+        border-2 border-indigo-400 dark:border-indigo-300 
+        bg-indigo-400/10 dark:bg-indigo-400/10 
+        shadow-[0_0_12px_rgba(129,140,248,0.2)] dark:shadow-[0_0_12px_rgba(165,180,252,0.3)]
+        hover:bg-indigo-400/20 dark:hover:bg-indigo-400/20
+        transition-all duration-200
+      `
+    }
   }
 } 

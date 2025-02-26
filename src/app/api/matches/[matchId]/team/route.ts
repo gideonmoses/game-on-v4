@@ -63,19 +63,31 @@ export async function PATCH(
   { params }: { params: { matchId: string } }
 ) {
   try {
-    const { matchId } = params
+    const { matchId } = await params
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get the current match data
+    const matchDoc = await adminDB.collection('matches').doc(matchId).get()
+    const matchData = matchDoc.data()
+
+    // If match is already announced, we're unpublishing
+    if (matchData?.status === 'team-announced') {
+      await adminDB.collection('matches').doc(matchId).update({
+        status: 'voting' // Change status back to voting instead of team-selected
+      })
+      return NextResponse.json({ message: 'Team unpublished successfully' })
+    }
+
+    // If match is not announced, we're publishing
     await adminDB.collection('matches').doc(matchId).update({
       status: 'team-announced'
     })
-
     return NextResponse.json({ message: 'Team published successfully' })
   } catch (error) {
-    console.error('Error publishing team:', error)
-    return NextResponse.json({ error: 'Failed to publish team' }, { status: 500 })
+    console.error('Error updating team status:', error)
+    return NextResponse.json({ error: 'Failed to update team status' }, { status: 500 })
   }
 } 

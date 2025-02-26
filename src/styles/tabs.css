@@ -1,0 +1,72 @@
+.tabs-container {
+  @apply w-full;
+}
+
+.tabs-list {
+  @apply grid w-full grid-cols-2 gap-2 rounded-lg bg-gray-100 p-1 dark:bg-gray-800/50 mb-4;
+}
+
+.tabs-trigger {
+  @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 py-2.5
+    text-sm font-medium ring-offset-white transition-all
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2
+    disabled:pointer-events-none disabled:opacity-50
+    data-[state=active]:bg-white data-[state=active]:text-gray-950 data-[state=active]:shadow
+    dark:ring-offset-gray-950 dark:focus-visible:ring-gray-800
+    dark:data-[state=active]:bg-gray-950 dark:data-[state=active]:text-gray-50;
+}
+
+.tabs-trigger-icon {
+  @apply h-4 w-4 shrink-0;
+}
+
+.tabs-trigger-count {
+  @apply ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-900
+    dark:bg-gray-800 dark:text-gray-100;
+}
+
+.tabs-content {
+  @apply mt-2 ring-offset-white focus-visible:outline-none focus-visible:ring-2 
+    focus-visible:ring-gray-400 focus-visible:ring-offset-2 
+    dark:ring-offset-gray-950 dark:focus-visible:ring-gray-800;
+}
+
+.tab-panel {
+  @apply bg-white dark:bg-gray-800/50 rounded-lg shadow-sm p-4;
+}
+
+/* Player list styles */
+.player-list {
+  @apply space-y-2;
+}
+
+.player-item {
+  @apply flex items-center justify-between p-3 rounded-lg
+    bg-gray-50 dark:bg-gray-800/30
+    hover:bg-gray-100 dark:hover:bg-gray-800/50
+    transition-colors duration-200;
+}
+
+.player-info {
+  @apply flex items-center gap-3;
+}
+
+.player-avatar {
+  @apply w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center;
+}
+
+.player-details {
+  @apply flex flex-col;
+}
+
+.player-name {
+  @apply font-medium text-gray-900 dark:text-gray-100;
+}
+
+.player-status {
+  @apply text-sm text-gray-500 dark:text-gray-400;
+}
+
+.player-actions {
+  @apply flex items-center gap-2;
+} 
