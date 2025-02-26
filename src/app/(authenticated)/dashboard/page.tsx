@@ -1,6 +1,5 @@
-
 import { Carousel } from '@/components/ui/Carousel'
-import { VotingList } from '@/components/matches/VotingList'
+import { UpcomingMatches } from '@/components/matches/UpcomingMatches'
 
 
 const carouselItems = [
@@ -36,9 +35,9 @@ export default async function DashboardPage() {
 
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Voting Required
+            Upcoming Matches
           </h2>
-          <VotingList/>
+          <UpcomingMatches />
         </div>
       </div>
   )
