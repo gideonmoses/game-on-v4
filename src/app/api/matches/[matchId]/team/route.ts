@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { adminDB } from '@/lib/firebase/admin'
 import { getAuth } from 'firebase-admin/auth'
 import { z } from 'zod'
+import { db } from '@/lib/firebase/firebase-config'
+import { doc, getDoc } from 'firebase/firestore'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 const teamSchema = z.object({
   starters: z.array(z.object({
@@ -89,5 +93,59 @@ export async function PATCH(
   } catch (error) {
     console.error('Error updating team status:', error)
     return NextResponse.json({ error: 'Failed to update team status' }, { status: 500 })
+  }
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: { matchId: string } }
+) {
+  try {
+    // Get the auth token from headers
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const token = authHeader.split('Bearer ')[1]
+    const auth = getAuth()
+    
+    // Verify the token
+    try {
+      await auth.verifyIdToken(token)
+    } catch (error) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    const { matchId } = params
+    if (!matchId) {
+      return NextResponse.json({ error: 'Match ID is required' }, { status: 400 })
+    }
+
+    // Get match document from Firestore using admin SDK
+    const matchDoc = await adminDB.collection('matches').doc(matchId).get()
+    
+    if (!matchDoc.exists) {
+      return NextResponse.json({ error: 'Match not found' }, { status: 404 })
+    }
+
+    const matchData = matchDoc.data()
+
+    // Check if team has been selected
+    if (!matchData?.teamSelection) {
+      return NextResponse.json({ error: 'Team has not been selected yet' }, { status: 404 })
+    }
+
+    // Return the team selection data
+    return NextResponse.json({
+      starters: matchData.teamSelection.starters,
+      substitutes: matchData.teamSelection.substitutes,
+      updatedAt: matchData.teamSelection.updatedAt,
+      updatedBy: matchData.teamSelection.updatedBy
+    })
+
+  } catch (error) {
+    console.error('Error fetching team:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 } 

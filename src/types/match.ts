@@ -1,6 +1,11 @@
 import { Timestamp } from 'firebase/firestore'
 
-export type MatchStatus = 'scheduled' | 'voting' | 'team-announced' | 'completed' | 'cancelled'
+export type MatchStatus = 
+  | 'scheduled'   // Initial state when match is created
+  | 'voting'      // Voting is open for players
+  | 'team-selected'  // Team has been selected but not announced
+  | 'team-announced' // Team has been announced
+  | 'completed'   // Match is finished
 export type JerseyColor = 'whites' | 'colours'
 export type VoteStatus = 'available' | 'not_available' | 'tentative'
 

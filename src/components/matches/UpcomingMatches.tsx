@@ -8,7 +8,8 @@ import {
   Trophy,
   Check,
   X,
-  HelpCircle
+  HelpCircle,
+  Users
 } from 'lucide-react'
 import type { Match, VoteStatus } from '@/types/match'
 import { useAuth } from '@/hooks/useAuth'
@@ -16,12 +17,16 @@ import { iconStyles } from '@/styles/iconStyles'
 import { format } from 'date-fns'
 import { InfoItem } from '@/components/ui/InfoItem'
 import { Timestamp } from 'firebase/firestore'
+import { getStatusTag } from '@/lib/utils/statusTag'
+import Link from 'next/link'
+import { TeamViewModal } from '@/components/matches/TeamViewModal'
 
 export function UpcomingMatches() {
   const { user } = useAuth()
   const [matches, setMatches] = useState<Match[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isVoting, setIsVoting] = useState<string | null>(null)
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
 
   useEffect(() => {
     console.log('VotingList mounted, user:', user?.id)
@@ -36,10 +41,10 @@ export function UpcomingMatches() {
       const data = await response.json()
       console.log('All matches received:', data)
       
-      // Filter matches that are in voting state
+      // Filter matches that are in the future
       const votingMatches = data.filter((match: Match) => {
-        console.log('Match status:', match.id, match.status)
-        return match.status === 'voting'
+        console.log('Match date:', match.date)
+        return new Date(match.date) > new Date() // Check if the match date is in the future
       })
       console.log('Voting matches filtered:', votingMatches)
       setMatches(votingMatches)
@@ -118,6 +123,10 @@ export function UpcomingMatches() {
     }
   }
 
+  const isVotingDisabled = (match: Match) => {
+    return match.status === 'team-selected' || match.status === 'team-announced'
+  }
+
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4">
@@ -159,42 +168,7 @@ export function UpcomingMatches() {
               </div>
               
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleVote(match.id, 'available')}
-                  disabled={isVoting === match.id}
-                  className={`p-2 rounded-full transition-colors border-2 ${
-                    userVote === 'available' 
-                      ? 'bg-green-100 dark:bg-green-900/20 border-green-600' 
-                      : 'hover:bg-green-100 dark:hover:bg-green-900/20 border-transparent hover:border-green-600'
-                  } text-green-600 dark:text-green-400`}
-                  title="Available"
-                >
-                  <Check className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => handleVote(match.id, 'tentative')}
-                  disabled={isVoting === match.id}
-                  className={`p-2 rounded-full transition-colors border-2 ${
-                    userVote === 'tentative'
-                      ? 'bg-yellow-100 dark:bg-yellow-900/20 border-yellow-600'
-                      : 'hover:bg-yellow-100 dark:hover:bg-yellow-900/20 border-transparent hover:border-yellow-600'
-                  } text-yellow-600 dark:text-yellow-400`}
-                  title="Maybe"
-                >
-                  <HelpCircle className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => handleVote(match.id, 'not_available')}
-                  disabled={isVoting === match.id}
-                  className={`p-2 rounded-full transition-colors border-2 ${
-                    userVote === 'not_available'
-                      ? 'bg-red-100 dark:bg-red-900/20 border-red-600'
-                      : 'hover:bg-red-100 dark:hover:bg-red-900/20 border-transparent hover:border-red-600'
-                  } text-red-600 dark:text-red-400`}
-                  title="Not Available"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                {getStatusTag(match.status)}
               </div>
             </div>
 
@@ -219,38 +193,73 @@ export function UpcomingMatches() {
               />
             </div>
 
-            {userVote ? (
-              <div className="mt-4 text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Your response: </span>
-                <a 
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    const nextStatus = {
-                      'available': 'tentative',
-                      'tentative': 'not_available',
-                      'not_available': 'available'
-                    }[userVote] as VoteStatus
-                    handleVote(match.id, nextStatus)
-                  }}
-                  className={`
-                    font-medium hover:underline
-                    ${userVote === 'available' ? 'text-green-600 dark:text-green-400' : ''}
-                    ${userVote === 'tentative' ? 'text-yellow-600 dark:text-yellow-400' : ''}
-                    ${userVote === 'not_available' ? 'text-red-600 dark:text-red-400' : ''}
-                  `}
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex gap-2">
+                {!isVotingDisabled(match) ? (
+                  <>
+                    <button
+                      onClick={() => handleVote(match.id, 'available')}
+                      disabled={isVoting === match.id || isVotingDisabled(match)}
+                      className={`p-2 rounded-full transition-colors border-2 ${
+                        userVote === 'available' 
+                          ? 'bg-green-100 dark:bg-green-900/20 border-green-600' 
+                          : 'hover:bg-green-100 dark:hover:bg-green-900/20 border-transparent hover:border-green-600'
+                      } text-green-600 dark:text-green-400`}
+                    >
+                      <Check className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleVote(match.id, 'tentative')}
+                      disabled={isVoting === match.id || isVotingDisabled(match)}
+                      className={`p-2 rounded-full transition-colors border-2 ${
+                        userVote === 'tentative'
+                          ? 'bg-yellow-100 dark:bg-yellow-900/20 border-yellow-600'
+                          : 'hover:bg-yellow-100 dark:hover:bg-yellow-900/20 border-transparent hover:border-yellow-600'
+                      } text-yellow-600 dark:text-yellow-400`}
+                    >
+                      <HelpCircle className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleVote(match.id, 'not_available')}
+                      disabled={isVoting === match.id || isVotingDisabled(match)}
+                      className={`p-2 rounded-full transition-colors border-2 ${
+                        userVote === 'not_available'
+                          ? 'bg-red-100 dark:bg-red-900/20 border-red-600'
+                          : 'hover:bg-red-100 dark:hover:bg-red-900/20 border-transparent hover:border-red-600'
+                      } text-red-600 dark:text-red-400`}
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    Voting closed
+                  </span>
+                )}
+              </div>
+
+              {(match.status === 'team-announced') && (
+                <button 
+                  onClick={() => setSelectedMatch(match)}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 
+                           hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-full transition-colors"
                 >
-                  {getStatusDisplay(userVote)}
-                </a>
-              </div>
-            ) : (
-              <div className="mt-4 text-sm text-red-600 dark:text-red-400 font-medium">
-                Please vote for your availability
-              </div>
-            )}
+                  <Users className="w-4 h-4" />
+                  View Team
+                </button>
+              )}
+            </div>
           </div>
         )
       })}
+
+      {selectedMatch && (
+        <TeamViewModal
+          match={selectedMatch}
+          isOpen={!!selectedMatch}
+          onClose={() => setSelectedMatch(null)}
+        />
+      )}
     </div>
   )
 } 
