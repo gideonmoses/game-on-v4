@@ -23,7 +23,7 @@ export async function POST(
   { params }: { params: { matchId: string } }
 ) {
   try {
-    const { matchId } = params
+    const { matchId } = await params
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -12,9 +12,12 @@ export async function POST(
   { params }: { params: { matchId: string } }
 ) {
   try {
-    const { matchId } = params
+    const { matchId } = await params
+    console.log('Vote request received for match:', matchId)
+    
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
+      console.log('Unauthorized request - no valid auth header')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -22,11 +25,13 @@ export async function POST(
     const auth = getAuth()
     const decodedToken = await auth.verifyIdToken(token)
     const userId = decodedToken.uid
+    console.log('Vote request from user:', userId)
 
     const body = await request.json()
     const result = voteSchema.safeParse(body)
     
     if (!result.success) {
+      console.log('Vote validation failed:', result.error.flatten())
       return NextResponse.json({
         error: 'Validation failed',
         details: result.error.flatten()
@@ -34,6 +39,10 @@ export async function POST(
     }
 
     const { status } = result.data
+
+    // Check if match exists and is in voting state
+    const matchDoc = await adminDB.collection('matches').doc(matchId).get()
+    console.log('Match status:', matchDoc.data()?.status)
 
     await adminDB.collection('matches').doc(matchId).update({
       [`votes.${userId}`]: {
@@ -43,6 +52,7 @@ export async function POST(
       }
     })
 
+    console.log('Vote recorded successfully')
     return NextResponse.json({ message: 'Vote recorded successfully' })
   } catch (error) {
     console.error('Error recording vote:', error)
