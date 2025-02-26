@@ -4,7 +4,8 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { AuthenticatedHeader } from '@/components/layout/AuthenticatedHeader'
-import { BottomNavigation } from '@/components/layout/BottomNavigation'
+import { memo } from 'react'
+import BottomNavigation from '@/components/layout/BottomNavigation'
 
 export default function AuthenticatedLayout({
   children,
