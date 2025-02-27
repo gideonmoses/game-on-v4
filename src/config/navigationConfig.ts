@@ -4,7 +4,8 @@ import {
   Settings, 
   Users, 
   CreditCard, 
-  ClipboardList 
+  ClipboardList,
+  Calculator
 } from 'lucide-react'
 import { iconStyles } from '@/styles/iconStyles'
 import type { LucideIcon } from 'lucide-react'
@@ -64,6 +65,17 @@ const navigationConfig: NavigationItem[] = [
     },
     matchPattern: (path) => path.startsWith('/payments'),
     roles: ['Player']
+  },
+  {
+    href: '/manager',
+    icon: Calculator,
+    label: 'Manage',
+    iconStyle: {
+      container: 'bg-teal-100 dark:bg-teal-900/30',
+      default: 'text-teal-600 dark:text-teal-400'
+    },
+    matchPattern: (path) => path.startsWith('/manager'),
+    roles: ['Manager']
   }
 ]
 

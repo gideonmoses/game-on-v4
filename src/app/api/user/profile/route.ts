@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { adminDB } from '@/lib/firebase/admin'
+import { authMiddleware } from '@/middleware/authMiddleware'
 import { z } from 'zod'
 
 const updateProfileSchema = z.object({
@@ -10,34 +11,26 @@ const updateProfileSchema = z.object({
   dateOfBirth: z.string(),
 })
 
-export async function GET(request: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
+    const user = await authMiddleware(req)
+    if (!('uid' in user)) return user // Error response
 
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
-      )
-    }
+    const userDoc = await adminDB
+      .collection('users')
+      .doc(user.uid)
+      .get()
 
-    const userDoc = await adminDB.collection('users').doc(email).get()
-    
     if (!userDoc.exists) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+      return Response.json({ error: 'User not found' }, { status: 404 })
     }
 
-    return NextResponse.json(userDoc.data())
+    return Response.json({
+      profile: { id: userDoc.id, ...userDoc.data() }
+    })
   } catch (error) {
-    console.error('Error fetching profile:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch profile' },
-      { status: 500 }
-    )
+    console.error('Error:', error)
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 

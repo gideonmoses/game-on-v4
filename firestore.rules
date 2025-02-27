@@ -11,5 +11,23 @@ service cloud.firestore {
                       (request.auth.token.email == email || 
                        get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.roles.hasAny(['Admin']));
     }
+
+    match /matches/{matchId} {
+      allow read: if request.auth != null && 
+                    request.auth.token.roles.hasAny(['Manager']) &&
+                    resource.data.status == 'team-announced';
+      
+      match /payment-requests/{requestId} {
+        allow read, write: if request.auth != null && 
+                            request.auth.token.roles.hasAny(['Manager']);
+        allow read: if request.auth != null && 
+                     request.auth.uid == resource.data.userId;
+      }
+    }
+
+    match /match-payment-summaries/{matchId} {
+      allow read, write: if request.auth != null && 
+                          request.auth.token.roles.hasAny(['Manager']);
+    }
   }
 } 

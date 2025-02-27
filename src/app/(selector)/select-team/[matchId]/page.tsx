@@ -595,6 +595,22 @@ export default function SelectTeamPage({ params }: PageProps) {
     }
   }, [user, router])
 
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const idToken = await user?.getIdToken()
+        const response = await fetch(`/api/selector/matches/${matchId}`, {
+          headers: {
+            Authorization: `Bearer ${idToken}`
+          }
+        })
+        // ...
+      } catch (error) {
+        console.error('Error:', error)
+      }
+    }
+  }, [user])
+
   if (authLoading || isLoading) {
     return <SelectTeamSkeleton />
   }
