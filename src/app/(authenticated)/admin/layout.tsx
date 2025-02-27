@@ -1,0 +1,1 @@
+import { BottomNavigation } from '@/components/layout/BottomNavigation' 

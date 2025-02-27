@@ -13,62 +13,63 @@ interface NavigationItem {
   href: string
   icon: LucideIcon
   label: string
-  iconStyle: { default: string; container: string }
+  iconStyle: {
+    container: string
+    default: string
+  }
   matchPattern: (pathname: string) => boolean
-  roles?: string[] 
+  roles?: string[]
 }
 
-const allNavigationItems: NavigationItem[] = [
+const navigationConfig: NavigationItem[] = [
   {
     href: '/dashboard',
-    icon: Home,
+    icon: ClipboardList,
     label: 'Home',
-    iconStyle: iconStyles.home,
+    iconStyle: {
+      container: 'bg-blue-100 dark:bg-blue-900/30',
+      default: 'text-blue-600 dark:text-blue-400'
+    },
     matchPattern: (path) => path === '/dashboard'
-  },
-  {
-    href: '/profile',
-    icon: User,
-    label: 'Profile',
-    iconStyle: iconStyles.user,
-    matchPattern: (path) => path === '/profile'
-  },
-  {
-    href: '/admin',
-    icon: Settings,
-    label: 'Admin',
-    iconStyle: iconStyles.settings,
-    matchPattern: (path) => path.startsWith('/admin'),
-    roles: ['Admin']
   },
   {
     href: '/selector-home',
     icon: Users,
     label: 'Select',
-    iconStyle: iconStyles.selector,
+    iconStyle: {
+      container: 'bg-amber-100 dark:bg-amber-900/30',
+      default: 'text-amber-600 dark:text-amber-400'
+    },
     matchPattern: (path) => path.startsWith('/selector-home') || path.startsWith('/select-team'),
-    roles: ['Admin', 'Selector']
+    roles: ['Selector']
   },
   {
-    href: '/manager/payments',
-    icon: ClipboardList,
-    label: 'Manage',
-    iconStyle: iconStyles.selector,
-    matchPattern: (path) => path.startsWith('/manager'),
-    roles: ['Manager']
+    href: '/admin',
+    icon: Settings,
+    label: 'Admin',
+    iconStyle: {
+      container: 'bg-purple-100 dark:bg-purple-900/30',
+      default: 'text-purple-600 dark:text-purple-400'
+    },
+    matchPattern: (path) => path.startsWith('/admin'),
+    roles: ['Admin']
   },
   {
     href: '/payments',
     icon: CreditCard,
     label: 'Payment',
-    iconStyle: iconStyles.selector,
+    iconStyle: {
+      container: 'bg-green-100 dark:bg-green-900/30',
+      default: 'text-green-600 dark:text-green-400'
+    },
     matchPattern: (path) => path.startsWith('/payments'),
     roles: ['Player']
   }
 ]
 
-export function getNavigationItems(userRoles: string[]): NavigationItem[] {
-  return allNavigationItems.filter(item => 
-    !item.roles || item.roles.some(role => userRoles.includes(role))
-  )
+export const getNavigationItems = (userRoles: string[]) => {
+  return navigationConfig.filter(item => {
+    if (!item.roles) return true
+    return item.roles.some(role => userRoles.includes(role))
+  })
 } 

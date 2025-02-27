@@ -16,32 +16,46 @@ export interface MatchVote {
 }
 
 export interface SelectedPlayer {
-  userId: string
+  email: string          // Changed from userId to email
   displayName: string
   jerseyNumber?: string
   role: 'starter' | 'substitute'
 }
 
 export interface TeamSelection {
+  id: string
+  matchId: string
   starters: SelectedPlayer[]
   substitutes: SelectedPlayer[]
-  updatedAt: Timestamp
-  updatedBy: string // admin/selector who made the selection
+  version: number
+  status: 'draft' | 'final'
+  updatedAt: string
+  updatedBy: string
+}
+
+interface VoteStatus {
+  status: 'available' | 'not_available' | 'tentative'
+  updatedAt: string
+  userEmail: string
+}
+
+export interface Vote {
+  status: 'available' | 'not_available' | 'tentative'
+  updatedAt: string
+  userEmail: string
 }
 
 export interface Match {
   id: string
   homeTeam: string
   awayTeam: string
-  tournamentName: string
-  date: Timestamp
+  date: string | Timestamp  // Can be either ISO string or Firebase Timestamp
   time: string
   venue: string
-  status: 'scheduled' | 'voting' | 'team-announced' | 'completed'
-  votes?: Record<string, {
-    status: VoteStatus
-    updatedAt: string
-    userEmail: string
-  }>
+  tournamentName?: string
+  status: 'voting' | 'team-selected' | 'team-announced'
+  votes?: {
+    [email: string]: Vote
+  }
   teamSelection?: TeamSelection
 } 
