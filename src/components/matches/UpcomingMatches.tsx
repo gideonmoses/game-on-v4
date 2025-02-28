@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
 import type { ReactElement } from 'react'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 import { ViewTeamModal } from './ViewTeamModal'
 
 interface VoteOption {

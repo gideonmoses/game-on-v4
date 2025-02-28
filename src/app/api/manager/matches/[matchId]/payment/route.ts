@@ -24,123 +24,95 @@ interface PaymentRequest {
 
 export async function POST(
   request: Request,
-  { params }: { params: { matchId: string } }
+  context: { params: Promise<{ matchId: string }> }
 ) {
   try {
+    const { matchId } = await context.params
+
+    // Get auth token
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'No authorization token provided' },
+        { status: 401 }
+      )
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await adminAuth.verifyIdToken(token)
     
-    if (!decodedToken.roles?.includes('Manager')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    // Verify token and get user info
+    let decodedToken
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token)
+    } catch (error) {
+      console.error('Auth error:', error)
+      return NextResponse.json(
+        { error: 'Invalid authentication token' },
+        { status: 401 }
+      )
     }
 
-    const { action, data } = await request.json()
+    // Check if user is a manager - case insensitive check
+    const userDoc = await adminDB.collection('users').doc(decodedToken.email || '').get()
+    const userData = userDoc.data()
 
-    switch (action) {
-      case 'initiate': {
-        const { baseAmount, dueDate, players } = data
-        const batch = adminDB.batch()
-
-        // Validate input
-        if (!Array.isArray(players) || players.length === 0) {
-          return NextResponse.json({ error: 'No players selected' }, { status: 400 })
-        }
-
-        if (!baseAmount || !dueDate) {
-          return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-        }
-
-        // Create match payment summary
-        const summaryRef = adminDB.collection('match-payment-summaries').doc(params.matchId)
-        batch.set(summaryRef, {
-          id: params.matchId,
-          matchId: params.matchId,
-          status: 'initiated',
-          baseAmount,
-          dueDate: Timestamp.fromDate(new Date(dueDate)),
-          initiatedAt: Timestamp.now(),
-          initiatedBy: decodedToken.email,
-          lastUpdatedAt: Timestamp.now(),
-          totalPlayers: players.length,
-          pendingCount: players.length,
-          submittedCount: 0,
-          verifiedCount: 0,
-          totalExpected: baseAmount * players.length,
-          totalSubmitted: 0,
-          totalVerified: 0,
-          totalContributions: 0
-        })
-
-        // Create payment requests for each player
-        players.forEach(email => {
-          const requestRef = adminDB
-            .collection('matches')
-            .doc(params.matchId)
-            .collection('payment-requests')
-            .doc()
-
-          batch.set(requestRef, {
-            id: requestRef.id,
-            matchId: params.matchId,
-            userEmail: email,
-            amount: baseAmount,
-            status: 'pending',
-            requestedAt: Timestamp.now(),
-            dueDate: Timestamp.fromDate(new Date(dueDate)),
-            requestedBy: decodedToken.email
-          })
-        })
-
-        await batch.commit()
-        return NextResponse.json({ success: true })
-      }
-
-      case 'verify': {
-        const { requestId, verified, notes } = data
-        const requestRef = adminDB.collection('matches')
-          .doc(params.matchId)
-          .collection('payment-requests')
-          .doc(requestId)
-
-        const request = await requestRef.get()
-        if (!request.exists) {
-          return NextResponse.json({ error: 'Payment request not found' }, { status: 404 })
-        }
-
-        const requestData = request.data()!
-        const newStatus: PaymentStatus = verified ? 'verified' : 'rejected'
-
-        // Update request
-        await requestRef.update({
-          status: newStatus,
-          verifiedAt: Timestamp.now(),
-          verifiedBy: decodedToken.email,
-          verificationNotes: notes
-        })
-
-        // Update summary counters
-        const summaryRef = adminDB.collection('match-payment-summaries').doc(params.matchId)
-        await summaryRef.update({
-          lastUpdatedAt: Timestamp.now(),
-          verifiedCount: verified ? FieldValue.increment(1) : FieldValue.increment(0),
-          submittedCount: verified ? FieldValue.increment(-1) : FieldValue.increment(0),
-          totalVerified: verified ? FieldValue.increment(requestData.submittedAmount || 0) : FieldValue.increment(0),
-          totalContributions: verified ? FieldValue.increment(requestData.contribution || 0) : FieldValue.increment(0)
-        })
-
-        return NextResponse.json({ success: true })
-      }
-
-      default:
-        return Response.json({ error: 'Invalid action' }, { status: 400 })
+    if (!userData?.roles?.some(role => role.toLowerCase() === 'manager')) {
+      console.log('User roles:', userData?.roles) // Debug log
+      return NextResponse.json(
+        { error: 'Unauthorized. Manager role required.' },
+        { status: 403 }
+      )
     }
+
+    // Get request body
+    const body = await request.json()
+    const { action, data } = body
+
+    if (action !== 'initiate') {
+      return NextResponse.json(
+        { error: 'Invalid action' },
+        { status: 400 }
+      )
+    }
+
+    const { dueDate, players, paymentPhoneNumber } = data
+
+    if (!dueDate || !players?.length || !paymentPhoneNumber) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    // Create payment requests for each player
+    const batch = adminDB.batch()
+    const paymentRequestsRef = adminDB.collection('paymentRequests')
+
+    for (const playerEmail of players) {
+      const paymentRequestRef = paymentRequestsRef.doc()
+      batch.set(paymentRequestRef, {
+        id: paymentRequestRef.id,
+        matchId,
+        userEmail: playerEmail,
+        status: 'pending',
+        requestedAt: Timestamp.now(),
+        dueDate: Timestamp.fromDate(new Date(dueDate)),
+        requestedBy: decodedToken.email,
+        paymentPhoneNumber,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      })
+    }
+
+    await batch.commit()
+
+    return NextResponse.json({ 
+      success: true, 
+      message: `Created ${players.length} payment requests` 
+    })
+
   } catch (error) {
-    console.error('Error in payment management:', error)
+    console.error('Error in payment API:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
