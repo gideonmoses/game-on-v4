@@ -2,30 +2,24 @@ import { Timestamp } from 'firebase/firestore'
 import { User } from './user'
 import { Match } from './match'
 
-export type PaymentStatus = 'pending' | 'submitted' | 'verified' | 'rejected'
+export type PaymentStatus = 
+  | 'pending'
+  | 'submitted'
+  | 'verified'
+  | 'rejected'
 
 // Main payment request record
 export interface PaymentRequest {
   id: string
   matchId: string
-  userId: string // user.email
+  userEmail: string
   amount: number
   status: PaymentStatus
-  requestedAt: Timestamp
-  dueDate: Timestamp
-  requestedBy: string // manager's email
-  
-  // Payment submission details
-  submittedAt?: Timestamp
-  submittedAmount?: number
-  contribution?: number
-  paymentProof?: string // URL to payment screenshot
-  paymentNotes?: string
-  
-  // Verification details
-  verifiedAt?: Timestamp
-  verifiedBy?: string // manager's email
-  verificationNotes?: string
+  requestedAt: string
+  dueDate: string
+  submittedAt?: string
+  verifiedAt?: string
+  requestedBy: string
 }
 
 // Match level payment summary
@@ -57,9 +51,20 @@ export interface MatchPaymentSummary {
 }
 
 // For the manager's dashboard view
-export interface PaymentSummaryWithDetails extends MatchPaymentSummary {
-  match: Match
-  requests: (PaymentRequest & {
-    user: User
-  })[]
+export interface PaymentSummaryWithDetails {
+  totalExpected: number
+  totalSubmitted: number
+  totalVerified: number
+  lastUpdated: string
+}
+
+export interface PaymentSummary {
+  id: string
+  matchId: string
+  totalAmount: number
+  paidAmount: number
+  dueDate: string
+  status: PaymentStatus
+  createdAt: string
+  updatedAt: string
 } 

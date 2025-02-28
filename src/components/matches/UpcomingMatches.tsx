@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
 import type { ReactElement } from 'react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 import { ViewTeamModal } from './ViewTeamModal'
 
 interface VoteOption {
@@ -147,14 +147,14 @@ export function UpcomingMatches() {
         }
       }).filter(match => {
         // Filter future matches
-        const matchDate = new Date(match.date)
+        const matchDate = match.date instanceof Timestamp ? match.date.toDate() : new Date(match.date)
         return matchDate >= now
       }) as Match[]
 
       // Sort matches by date
       const sortedMatches = matchesData.sort((a, b) => {
-        const dateA = new Date(a.date)
-        const dateB = new Date(b.date)
+        const dateA = a.date instanceof Timestamp ? a.date.toDate() : new Date(a.date)
+        const dateB = b.date instanceof Timestamp ? b.date.toDate() : new Date(b.date)
         return dateA.getTime() - dateB.getTime()
       })
 

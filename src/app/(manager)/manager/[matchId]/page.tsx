@@ -1,12 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { PaymentSummaryWithDetails, PaymentRequest } from '@/types/payment'
-import { Match } from '@/types/match'
-import { format } from 'date-fns'
+import { useEffect, useState, use, useMemo } from 'react'
 import Link from 'next/link'
+import { Match } from '@/types/match'
+import { PaymentSummaryWithDetails, PaymentRequest } from '@/types/payment'
+import { format } from 'date-fns'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'react-hot-toast'
+import { Timestamp } from 'firebase/firestore'
+
+interface PageProps {
+  params: Promise<{ matchId: string }>
+}
 
 interface PaymentRequestWithUser extends PaymentRequest {
   user: {
@@ -15,11 +20,8 @@ interface PaymentRequestWithUser extends PaymentRequest {
   }
 }
 
-export default function MatchPaymentPage({ 
-  params 
-}: { 
-  params: { matchId: string } 
-}) {
+export default function MatchPaymentPage({ params }: PageProps) {
+  const { matchId } = use(params)
   const { user } = useAuth()
   const [match, setMatch] = useState<Match | null>(null)
   const [paymentDetails, setPaymentDetails] = useState<PaymentSummaryWithDetails | null>(null)
@@ -27,41 +29,54 @@ export default function MatchPaymentPage({
   const [activeTab, setActiveTab] = useState<'pending' | 'submitted' | 'verified'>('pending')
   const [loading, setLoading] = useState(true)
 
+  const formattedDate = useMemo(() => {
+    if (!match?.date) return ''
+    
+    const date = match.date instanceof Timestamp 
+      ? match.date.toDate() 
+      : typeof match.date === 'string' 
+        ? new Date(match.date)
+        : match.date
+        
+    return format(date, 'PPP')
+  }, [match?.date])
+
   useEffect(() => {
     async function fetchMatchDetails() {
       try {
-        const token = await user?.getIdToken()
-        const response = await fetch(`/api/manager/matches/${params.matchId}/payment`, {
+        if (!user) return
+
+        const token = await user.getIdToken()
+        const response = await fetch(`/api/manager/matches/${matchId}/payment`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         })
 
         if (!response.ok) {
-          throw new Error('Failed to fetch match details')
+          const data = await response.json()
+          throw new Error(data.error || 'Failed to fetch match details')
         }
 
         const data = await response.json()
         setMatch(data.match)
-        setPaymentDetails(data.summary)
-        setPaymentRequests(data.requests)
+        setPaymentDetails(data.paymentSummary)
+        setPaymentRequests(data.paymentRequests)
       } catch (error) {
-        toast.error('Failed to load match details')
         console.error('Error fetching match details:', error)
+        toast.error('Failed to load match details')
       } finally {
         setLoading(false)
       }
     }
 
-    if (user) {
-      fetchMatchDetails()
-    }
-  }, [user, params.matchId])
+    fetchMatchDetails()
+  }, [matchId, user])
 
   const handleVerifyPayments = async (requestIds: string[], verify: boolean) => {
     try {
       const token = await user?.getIdToken()
-      const response = await fetch(`/api/manager/matches/${params.matchId}/payment/verify`, {
+      const response = await fetch(`/api/manager/matches/${matchId}/payment/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,11 +127,11 @@ export default function MatchPaymentPage({
           <>
             <h1 className="text-2xl font-bold mb-2">{match?.title}</h1>
             <p className="text-sm text-gray-500 mb-4">
-              {match?.date && format(match.date.toDate(), 'PPP')}
+              {formattedDate}
             </p>
             {!paymentDetails && (
               <Link 
-                href={`/manager/${params.matchId}/payments/initiate`}
+                href={`/manager/${matchId}/payments/initiate`}
                 className="inline-flex items-center px-4 py-2 bg-amber-100 dark:bg-amber-900/30 
                   text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-200 
                   dark:hover:bg-amber-900/50 transition-colors"

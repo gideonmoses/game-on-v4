@@ -5,32 +5,58 @@ import {
   matchPaymentSummariesCollection, 
   getMatchPaymentRequestsCollection 
 } from '@/lib/firebase/collections'
-import { Timestamp } from 'firebase-admin/firestore'
+import { Timestamp, FieldValue } from 'firebase-admin/firestore'
 import { PaymentStatus } from '@/types/payment'
 import { verifyUserRole } from '@/lib/auth-helpers'
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import { matchesCollection } from '@/lib/firebase/collections'
+import { NextResponse } from 'next/server'
+import { adminDB, adminAuth } from '@/lib/firebase/admin'
+import { getAuth } from 'firebase-admin/auth'
+
+interface PaymentRequest {
+  id: string
+  requestedAt: Timestamp
+  submittedAt: Timestamp | null
+  verifiedAt: Timestamp | null
+  userEmail: string
+}
 
 export async function POST(
-  req: NextRequest,
+  request: Request,
   { params }: { params: { matchId: string } }
 ) {
   try {
-    // Verify auth and manager role
-    const token = await auth.verifyIdToken(req.headers.get('Authorization')?.split('Bearer ')[1] || '')
-    if (!token.roles?.includes('Manager')) {
-      return Response.json({ error: 'Unauthorized' }, { status: 403 })
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { action, data } = await req.json()
+    const token = authHeader.split('Bearer ')[1]
+    const decodedToken = await adminAuth.verifyIdToken(token)
+    
+    if (!decodedToken.roles?.includes('Manager')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    const { action, data } = await request.json()
 
     switch (action) {
       case 'initiate': {
         const { baseAmount, dueDate, players } = data
-        const batch = db.batch()
+        const batch = adminDB.batch()
+
+        // Validate input
+        if (!Array.isArray(players) || players.length === 0) {
+          return NextResponse.json({ error: 'No players selected' }, { status: 400 })
+        }
+
+        if (!baseAmount || !dueDate) {
+          return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+        }
 
         // Create match payment summary
-        const summaryRef = db.collection('match-payment-summaries').doc(params.matchId)
+        const summaryRef = adminDB.collection('match-payment-summaries').doc(params.matchId)
         batch.set(summaryRef, {
           id: params.matchId,
           matchId: params.matchId,
@@ -38,7 +64,7 @@ export async function POST(
           baseAmount,
           dueDate: Timestamp.fromDate(new Date(dueDate)),
           initiatedAt: Timestamp.now(),
-          initiatedBy: token.email,
+          initiatedBy: decodedToken.email,
           lastUpdatedAt: Timestamp.now(),
           totalPlayers: players.length,
           pendingCount: players.length,
@@ -51,35 +77,39 @@ export async function POST(
         })
 
         // Create payment requests for each player
-        const requestsCollection = getMatchPaymentRequestsCollection(params.matchId)
-        players.forEach(playerId => {
-          const requestRef = requestsCollection.doc()
+        players.forEach(email => {
+          const requestRef = adminDB
+            .collection('matches')
+            .doc(params.matchId)
+            .collection('payment-requests')
+            .doc()
+
           batch.set(requestRef, {
             id: requestRef.id,
             matchId: params.matchId,
-            userId: playerId,
+            userEmail: email,
             amount: baseAmount,
-            status: 'pending' as PaymentStatus,
+            status: 'pending',
             requestedAt: Timestamp.now(),
             dueDate: Timestamp.fromDate(new Date(dueDate)),
-            requestedBy: token.email
+            requestedBy: decodedToken.email
           })
         })
 
         await batch.commit()
-        return Response.json({ success: true })
+        return NextResponse.json({ success: true })
       }
 
       case 'verify': {
         const { requestId, verified, notes } = data
-        const requestRef = db.collection('matches')
+        const requestRef = adminDB.collection('matches')
           .doc(params.matchId)
           .collection('payment-requests')
           .doc(requestId)
 
         const request = await requestRef.get()
         if (!request.exists) {
-          return Response.json({ error: 'Payment request not found' }, { status: 404 })
+          return NextResponse.json({ error: 'Payment request not found' }, { status: 404 })
         }
 
         const requestData = request.data()!
@@ -89,21 +119,21 @@ export async function POST(
         await requestRef.update({
           status: newStatus,
           verifiedAt: Timestamp.now(),
-          verifiedBy: token.email,
+          verifiedBy: decodedToken.email,
           verificationNotes: notes
         })
 
         // Update summary counters
-        const summaryRef = db.collection('match-payment-summaries').doc(params.matchId)
+        const summaryRef = adminDB.collection('match-payment-summaries').doc(params.matchId)
         await summaryRef.update({
           lastUpdatedAt: Timestamp.now(),
-          verifiedCount: verified ? db.FieldValue.increment(1) : db.FieldValue.increment(0),
-          submittedCount: verified ? db.FieldValue.increment(-1) : db.FieldValue.increment(0),
-          totalVerified: verified ? db.FieldValue.increment(requestData.submittedAmount || 0) : db.FieldValue.increment(0),
-          totalContributions: verified ? db.FieldValue.increment(requestData.contribution || 0) : db.FieldValue.increment(0)
+          verifiedCount: verified ? FieldValue.increment(1) : FieldValue.increment(0),
+          submittedCount: verified ? FieldValue.increment(-1) : FieldValue.increment(0),
+          totalVerified: verified ? FieldValue.increment(requestData.submittedAmount || 0) : FieldValue.increment(0),
+          totalContributions: verified ? FieldValue.increment(requestData.contribution || 0) : FieldValue.increment(0)
         })
 
-        return Response.json({ success: true })
+        return NextResponse.json({ success: true })
       }
 
       default:
@@ -111,41 +141,116 @@ export async function POST(
     }
   } catch (error) {
     console.error('Error in payment management:', error)
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
 
 export async function GET(
-  req: NextRequest,
+  request: Request,
   { params }: { params: { matchId: string } }
 ) {
   try {
-    const user = await verifyUserRole(req, 'Manager')
-    if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 403 })
+    const { matchId } = params
+
+    // Verify auth token
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const token = authHeader.split('Bearer ')[1]
+    const decodedToken = await getAuth().verifyIdToken(token)
+
+    // Verify user has manager role
+    const userDoc = await adminDB.collection('users').doc(decodedToken.email!).get()
+    const userData = userDoc.data()
+    
+    if (!userData?.roles?.includes('Manager')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     // Get match details
-    const matchDoc = await getDoc(doc(matchesCollection, params.matchId))
-    if (!matchDoc.exists()) {
-      return Response.json({ error: 'Match not found' }, { status: 404 })
+    const matchDoc = await adminDB.collection('matches').doc(matchId).get()
+    if (!matchDoc.exists) {
+      return NextResponse.json({ error: 'Match not found' }, { status: 404 })
+    }
+
+    const matchData = matchDoc.data()
+    const match = {
+      id: matchDoc.id,
+      ...matchData,
+      date: matchData?.date instanceof Timestamp 
+        ? matchData.date.toDate().toISOString() 
+        : matchData?.date
     }
 
     // Get payment summary
-    const summaryDoc = await getDoc(doc(matchPaymentSummariesCollection, params.matchId))
+    const summaryDoc = await adminDB
+      .collection('match-payment-summaries')
+      .doc(matchId)
+      .get()
 
-    // Get payment requests
-    const requestsSnapshot = await getDocs(
-      collection(matchesCollection, params.matchId, 'payment-requests')
+    const summaryData = summaryDoc.data()
+    // Convert timestamps in summary
+    const paymentSummary = summaryDoc.exists ? {
+      ...summaryData,
+      initiatedAt: summaryData?.initiatedAt instanceof Timestamp ? 
+        summaryData.initiatedAt.toDate().toISOString() : summaryData?.initiatedAt,
+      lastUpdatedAt: summaryData?.lastUpdatedAt instanceof Timestamp ? 
+        summaryData.lastUpdatedAt.toDate().toISOString() : summaryData?.lastUpdatedAt,
+      dueDate: summaryData?.dueDate instanceof Timestamp ? 
+        summaryData.dueDate.toDate().toISOString() : summaryData?.dueDate
+    } : null
+
+    // Get payment requests with user details
+    const requestsSnapshot = await adminDB
+      .collection('matches')
+      .doc(matchId)
+      .collection('payment-requests')
+      .get()
+
+    const paymentRequests = await Promise.all(
+      requestsSnapshot.docs.map(async (doc) => {
+        const requestData = doc.data()
+        // Convert timestamps in request
+        const request = {
+          id: doc.id,
+          ...requestData,
+          requestedAt: requestData?.requestedAt instanceof Timestamp ? 
+            requestData.requestedAt.toDate().toISOString() : requestData?.requestedAt,
+          submittedAt: requestData?.submittedAt instanceof Timestamp ? 
+            requestData.submittedAt.toDate().toISOString() : requestData?.submittedAt,
+          verifiedAt: requestData?.verifiedAt instanceof Timestamp ? 
+            requestData.verifiedAt.toDate().toISOString() : requestData?.verifiedAt
+        }
+        
+        // Get user details
+        const userDoc = await adminDB
+          .collection('users')
+          .doc(request.userEmail)
+          .get()
+
+        return {
+          ...request,
+          user: userDoc.exists ? userDoc.data() : null
+        }
+      })
     )
 
-    return Response.json({
-      match: { id: matchDoc.id, ...matchDoc.data() },
-      summary: summaryDoc.exists() ? { id: summaryDoc.id, ...summaryDoc.data() } : null,
-      requests: requestsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    return NextResponse.json({
+      match,
+      paymentSummary,
+      paymentRequests
     })
+
   } catch (error) {
-    console.error('Error fetching payment data:', error)
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error fetching match payment details:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch match details' },
+      { status: 500 }
+    )
   }
 } 

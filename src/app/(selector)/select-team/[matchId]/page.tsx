@@ -719,6 +719,10 @@ ${Array.from(subs).map((email, i) => `${i + 1}. ${getPlayerName(email)}`).join('
     }
   }
 
+  const getActiveStateClasses = (isActive: boolean, activeClasses: string, inactiveClasses: string) => {
+    return isActive ? activeClasses : inactiveClasses
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Action Bar */}
@@ -788,37 +792,15 @@ ${Array.from(subs).map((email, i) => `${i + 1}. ${getPlayerName(email)}`).join('
             <TabsList className="grid grid-cols-2 gap-4 bg-transparent p-0 m-0 h-auto">
               <TabsTrigger 
                 value="starters" 
-                className="relative py-4 px-6 rounded-t-xl transition-colors duration-200
-                           [&[data-state=active]]:bg-amber-500/10 dark:[&[data-state=active]]:bg-amber-900/20
-                           [&[data-state=active]]:border-2 [&[data-state=active]]:border-amber-500/50
-                           [&[data-state=active]]:border-b-0
-                           [&[data-state=inactive]]:bg-gray-100/80 dark:[&[data-state=inactive]]:bg-gray-900/50
-                           hover:bg-gray-50 dark:hover:bg-gray-800/80
-                           z-10"
+                className={getActiveStateClasses(selectedStarters.size > 0, "relative py-4 px-6 rounded-t-xl transition-colors duration-200 [&[data-state=active]]:bg-amber-500/10 dark:[&[data-state=active]]:bg-amber-900/20 [&[data-state=active]]:border-2 [&[data-state=active]]:border-amber-500/50 [&[data-state=active]]:border-b-0 [&[data-state=inactive]]:bg-gray-100/80 dark:[&[data-state=inactive]]:bg-gray-900/50 hover:bg-gray-50 dark:hover:bg-gray-800/80 z-10", "relative py-4 px-6 rounded-t-xl transition-colors duration-200 [&[data-state=active]]:bg-gray-100/80 dark:[&[data-state=active]]:bg-gray-900/50 hover:bg-gray-50 dark:hover:bg-gray-800/80 z-10")}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-lg transition-colors ${
-                    "[&[data-state=active]]" 
-                      ? 'bg-amber-500/20 dark:bg-amber-400/20 scale-110' 
-                      : 'bg-gray-200/50 dark:bg-gray-700/50'
-                  }`}>
-                    <Users className={`w-6 h-6 ${
-                      "[&[data-state=active]]" 
-                        ? 'text-amber-600 dark:text-amber-400' 
-                        : 'text-gray-600 dark:text-gray-400'
-                    }`} />
+                  <div className={getActiveStateClasses(selectedStarters.size > 0, "p-2.5 rounded-lg transition-colors bg-amber-500/20 dark:bg-amber-400/20 scale-110", "p-2.5 rounded-lg transition-colors bg-gray-200/50 dark:bg-gray-700/50")}>
+                    <Users className={getActiveStateClasses(selectedStarters.size > 0, "text-amber-600 dark:text-amber-400", "text-gray-600 dark:text-gray-400")} />
                   </div>
                   <div className="flex flex-col items-start">
-                    <span className={`font-medium ${
-                      "[&[data-state=active]]" 
-                        ? 'text-amber-500 dark:text-amber-400 scale-105' 
-                        : 'text-gray-700 dark:text-gray-400'
-                    }`}>Starters</span>
-                    <span className={`text-sm ${
-                      "[&[data-state=active]]" 
-                        ? 'text-amber-400/90 dark:text-amber-400/90' 
-                        : 'text-gray-500 dark:text-gray-500'
-                    }`}>
+                    <span className={getActiveStateClasses(selectedStarters.size > 0, "font-medium text-amber-500 dark:text-amber-400 scale-105", "font-medium text-gray-700 dark:text-gray-400")}>Starters</span>
+                    <span className={getActiveStateClasses(selectedStarters.size > 0, "text-amber-400/90 dark:text-amber-400/90", "text-gray-500 dark:text-gray-500")}>
                       ({selectedStarters.size}/11)
                     </span>
                   </div>
@@ -827,32 +809,16 @@ ${Array.from(subs).map((email, i) => `${i + 1}. ${getPlayerName(email)}`).join('
 
               <TabsTrigger 
                 value="substitutes"
-                className="relative py-4 px-6 rounded-t-xl transition-colors duration-200
-                           [&[data-state=active]]:bg-amber-500/10 dark:[&[data-state=active]]:bg-amber-900/20
-                           [&[data-state=active]]:border-2 [&[data-state=active]]:border-amber-500/50
-                           [&[data-state=active]]:border-b-0
-                           [&[data-state=inactive]]:bg-gray-100/80 dark:[&[data-state=inactive]]:bg-gray-900/50
-                           hover:bg-gray-50 dark:hover:bg-gray-800/80
-                           z-10"
+                className={getActiveStateClasses(selectedSubstitutes.size > 0, "relative py-4 px-6 rounded-t-xl transition-colors duration-200 [&[data-state=active]]:bg-amber-500/10 dark:[&[data-state=active]]:bg-amber-900/20 [&[data-state=active]]:border-2 [&[data-state=active]]:border-amber-500/50 [&[data-state=active]]:border-b-0 [&[data-state=inactive]]:bg-gray-100/80 dark:[&[data-state=inactive]]:bg-gray-900/50 hover:bg-gray-50 dark:hover:bg-gray-800/80 z-10", "relative py-4 px-6 rounded-t-xl transition-colors duration-200 [&[data-state=active]]:bg-gray-100/80 dark:[&[data-state=active]]:bg-gray-900/50 hover:bg-gray-50 dark:hover:bg-gray-800/80 z-10")}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-lg transition-colors ${
-                    "[&[data-state=active]]" ? 'bg-amber-500/20 dark:bg-amber-400/20 scale-110' : 'bg-gray-200/50 dark:bg-gray-700/50'
-                  }`}>
-                    <Users className={`w-6 h-6 ${
-                      "[&[data-state=active]]" ? 'text-amber-600 dark:text-amber-400' : 'text-gray-600 dark:text-gray-400'
-                    }`} />
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <span className={`font-medium ${
-                      "[&[data-state=active]]" ? 'text-amber-500 dark:text-amber-400 scale-105' : 'text-gray-700 dark:text-gray-400'
-                    }`}>Subs</span>
-                    <span className={`text-sm ${
-                      "[&[data-state=active]]" ? 'text-amber-400/90 dark:text-amber-400/90' : 'text-gray-500 dark:text-gray-500'
-                    }`}>
-                      ({selectedSubstitutes.size}/5)
-                    </span>
-                  </div>
+                <div className={getActiveStateClasses(selectedSubstitutes.size > 0, "p-2.5 rounded-lg transition-colors bg-amber-500/20 dark:bg-amber-400/20 scale-110", "p-2.5 rounded-lg transition-colors bg-gray-200/50 dark:bg-gray-700/50")}>
+                  <Users className={getActiveStateClasses(selectedSubstitutes.size > 0, "text-amber-600 dark:text-amber-400", "text-gray-600 dark:text-gray-400")} />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className={getActiveStateClasses(selectedSubstitutes.size > 0, "font-medium text-amber-500 dark:text-amber-400 scale-105", "font-medium text-gray-700 dark:text-gray-400")}>Subs</span>
+                  <span className={getActiveStateClasses(selectedSubstitutes.size > 0, "text-amber-400/90 dark:text-amber-400/90", "text-gray-500 dark:text-gray-500")}>
+                    ({selectedSubstitutes.size}/5)
+                  </span>
                 </div>
               </TabsTrigger>
             </TabsList>

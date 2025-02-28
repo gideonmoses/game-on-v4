@@ -31,7 +31,8 @@ export default function ManagerDashboard() {
         })
 
         if (!response.ok) {
-          throw new Error('Failed to fetch matches')
+          const data = await response.json()
+          throw new Error(data.error || 'Failed to fetch matches')
         }
 
         const data = await response.json()
@@ -44,64 +45,75 @@ export default function ManagerDashboard() {
       }
     }
 
-    if (user) {
-      fetchMatches()
-    }
+    fetchMatches()
   }, [user])
 
-  return (
-    <main className="container max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Match Payments</h1>
-      
-      <div className="grid gap-4">
-        {loading ? (
-          [...Array(3)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+  if (loading) {
+    return (
+      <div className="p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="animate-pulse">
+            <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-6"></div>
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+                  <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                  <div className="h-4 w-1/4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                </div>
+              ))}
             </div>
-          ))
-        ) : matches.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 text-center text-gray-500">
-            No matches found
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-6">Match Payments</h1>
+        
+        {matches.length === 0 ? (
+          <p className="text-gray-500 dark:text-gray-400">No matches found</p>
         ) : (
-          matches.map(match => (
-            <Link key={match.id} href={`/manager/${match.id}`}>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold">{match.title}</h3>
-                    <p className="text-sm text-gray-500">
-                      {format(match.date.toDate(), 'PPP')}
-                    </p>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(match.paymentSummary?.status)}`}>
-                    {formatPaymentStatus(match.paymentSummary?.status)}
-                  </span>
+          <div className="grid gap-4">
+            {matches.map((match) => (
+              <Link
+                key={match.id}
+                href={`/manager/${match.id}`}
+                className="block p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow"
+              >
+                <div className="mb-2">
+                  <h2 className="font-semibold">
+                    {match.homeTeam} vs {match.awayTeam}
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {format(new Date(match.date), 'PPP')}
+                  </p>
                 </div>
                 
                 {match.paymentSummary && (
                   <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
                     <div>
-                      <p className="text-gray-500">Expected</p>
+                      <p className="text-gray-500 dark:text-gray-400">Expected</p>
                       <p className="font-medium">₹{match.paymentSummary.totalExpected}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Received</p>
+                      <p className="text-gray-500 dark:text-gray-400">Received</p>
                       <p className="font-medium">₹{match.paymentSummary.totalSubmitted}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Verified</p>
+                      <p className="text-gray-500 dark:text-gray-400">Verified</p>
                       <p className="font-medium">₹{match.paymentSummary.totalVerified}</p>
                     </div>
                   </div>
                 )}
-              </div>
-            </Link>
-          ))
+              </Link>
+            ))}
+          </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }
 
